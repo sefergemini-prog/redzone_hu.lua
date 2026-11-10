@@ -1,9 +1,10 @@
--- Redzone Hub - MM2 Halloween Edition (Qruplu menyu: Farm / Şerif / Katil)
+-- Redzone Hub - MM2 Halloween Edition (Farm / Şerif / Katil)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local VIM = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -23,7 +24,6 @@ screenGui.Name = "RedzoneHubGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = parentContainer
 
--- Toggle Butonu
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0, 140, 0, 40)
 toggleBtn.Position = UDim2.new(0.02, 0, 0.1, 0)
@@ -42,7 +42,6 @@ local toggleStroke = Instance.new("UIStroke")
 toggleStroke.Thickness = 2
 toggleStroke.Parent = toggleBtn
 
--- Ana Menü
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 260, 0, 380)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -69,7 +68,6 @@ bgGradient.Color = ColorSequence.new({
 bgGradient.Rotation = 90
 bgGradient.Parent = mainFrame
 
--- Süs katmanı
 local decor = Instance.new("Frame")
 decor.Name = "Decor"
 decor.Size = UDim2.new(1, 0, 1, 0)
@@ -161,11 +159,10 @@ local noclipEnabled = false
 local farmSpeed = 25
 local MIN_SPEED, MAX_SPEED, SPEED_STEP = 5, 50, 5
 
--- Rol bulma
 local function getRole(player)
 	local backpack = player:FindFirstChild("Backpack")
 	local character = player.Character
-	
+
 	if (character and character:FindFirstChild("Knife")) or (backpack and backpack:FindFirstChild("Knife")) then
 		return "Murderer"
 	elseif (character and (character:FindFirstChild("Gun") or character:FindFirstChild("Revolver"))) or (backpack and (backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Revolver"))) then
@@ -184,9 +181,7 @@ local function getRoleColor(player)
 	else
 		return Color3.fromRGB(0, 255, 0)
 	end
-end
-
--- Innocent: Güvenli Yer (farm ilə birləşdirilmiş)
+end-- Innocent: Güvenli Yer
 local safeEnabled = false
 local SAFE_POS = Vector3.new(0, 500, 0)
 local DANGER_DIST = 35
@@ -383,7 +378,76 @@ task.spawn(function()
 	end
 end)
 
--- UI köməkçiləri
+-- Şerif: Katilə yapış + proqnozlu atəş
+local SHOOT_COOLDOWN = 0.45   -- atəşlər arası fasilə
+local AIM_LEAD = 0.13         -- sürət proqnozu (saniyə). Hələ qaçırırsa 0.18 yaz
+local BEHIND = 6              -- katilin neçə stud arxasında dayansın
+local lastShot = 0
+
+local function aimPoint(tRoot)
+	return tRoot.Position + tRoot.AssemblyLinearVelocity * AIM_LEAD
+end
+
+local function fireGun(gun, tRoot)
+	local aim = aimPoint(tRoot)
+	local ok = pcall(function()
+		local kl = gun:FindFirstChild("KnifeLocal")
+		local cb = kl and kl:FindFirstChild("CreateBeam")
+		local rf = cb and cb:FindFirstChild("RemoteFunction")
+		if not rf then error("remote yoxdur") end
+		rf:InvokeServer(1, aim, "AH2")
+	end)
+	if ok then return end
+
+	local pos, onScreen = Camera:WorldToViewportPoint(aim)
+	if onScreen then
+		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+		task.wait()
+		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+	end
+end
+
+local shootConn = RunService.Heartbeat:Connect(function()
+	if not (autoShootEnabled and getRole(LocalPlayer) == "Sheriff") then return end
+
+	local myChar = LocalPlayer.Character
+	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
+	if not (myRoot and myHum and myHum.Health > 0) then return end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and getRole(player) == "Murderer" then
+			local tChar = player.Character
+			local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+			local hum = tChar and tChar:FindFirstChildOfClass("Humanoid")
+
+			if tRoot and hum and hum.Health > 0 then
+				-- Silahı götür
+				local gun = myChar:FindFirstChild("Gun") or myChar:FindFirstChild("Revolver")
+				if not gun then
+					local bp = LocalPlayer:FindFirstChild("Backpack")
+					local g = bp and (bp:FindFirstChild("Gun") or bp:FindFirstChild("Revolver"))
+					if g then myHum:EquipTool(g) end
+					return
+				end
+
+				-- Katilin proqnozlaşdırılmış mövqeyinin arxasına yapış
+				local predicted = tRoot.Position + tRoot.AssemblyLinearVelocity * 0.05
+				local behind = predicted - tRoot.CFrame.LookVector * BEHIND
+				myRoot.CFrame = CFrame.lookAt(behind, predicted)
+				myRoot.AssemblyLinearVelocity = Vector3.zero
+				Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint(tRoot))
+
+				-- Atəş (ayrı thread, döngünü dondurmur)
+				if tick() - lastShot >= SHOOT_COOLDOWN then
+					lastShot = tick()
+					task.spawn(fireGun, gun, tRoot)
+				end
+				break
+			end
+		end
+	end
+end)-- UI köməkçiləri
 local function addButtonStroke(btn)
 	local s = Instance.new("UIStroke")
 	s.Color = Color3.fromRGB(140, 70, 200)
@@ -547,7 +611,7 @@ local farmPage = createTab("farm", "🍬 Farm", 0.04)
 local sheriffPage = createTab("sheriff", "🔫 Şerif", 0.355)
 local murdererPage = createTab("murderer", "🔪 Katil", 0.67)
 
--- FARM qrupu
+-- FARM
 createToggle(farmPage, "Auto Farm Candy", 0, function(state)
 	autoFarmEnabled = state
 end)
@@ -572,8 +636,8 @@ createToggle(farmPage, "Innocent: Güvenli Yer", 144, function(state)
 	end
 end)
 
--- ŞERİF qrupu
-createToggle(sheriffPage, "Şerif: Oto Vur", 0, function(state)
+-- ŞERİF
+createToggle(sheriffPage, "Şerif: Katile TP + Vur", 0, function(state)
 	autoShootEnabled = state
 end)
 
@@ -588,12 +652,12 @@ createToggle(sheriffPage, "Role ESP", 48, function(state)
 	end
 end)
 
--- KATİL qrupu
+-- KATİL
 createToggle(murdererPage, "Katil: Oto Öldür", 0, function(state)
 	autoKillEnabled = state
 end)
 
--- Kapat düyməsi (bütün tablarda görünür)
+-- Kapat
 createButton(mainFrame, "Scripti Kapat", 292, Color3.fromRGB(70, 35, 90), function()
 	autoFarmEnabled = false
 	autoKillEnabled = false
@@ -605,36 +669,34 @@ createButton(mainFrame, "Scripti Kapat", 292, Color3.fromRGB(70, 35, 90), functi
 	if safePlatform then safePlatform:Destroy() end
 	restoreCollision()
 	noclipConn:Disconnect()
+	shootConn:Disconnect()
 	screenGui:Destroy()
 end)
 
 selectTab("farm")
 
--- Şerif: katili görünce vur
-local lastShot = 0
-local SHOOT_COOLDOWN = 0.6
-
+-- Animasiya + ESP
 RunService.RenderStepped:Connect(function()
 	local now = tick()
 	local t = now % 5 / 5
 	local halloweenColor = Color3.fromHSV(t * 0.15 + 0.05, 0.9, 1)
 	uiStroke.Color = halloweenColor
 	toggleStroke.Color = halloweenColor
-	
+
 	titleGradient.Offset = Vector2.new(math.sin(now * 0.8) * 0.4, 0)
-	
+
 	for _, f in ipairs(floaters) do
 		local y = 1.1 - ((now * f.speed + f.offset) % 1.2)
 		local x = f.baseX + math.sin(now * 0.8 + f.phase) * 0.06
 		f.label.Position = UDim2.new(x, -15, y, 0)
 	end
-	
+
 	if espEnabled then
 		for _, player in ipairs(Players:GetPlayers()) do
 			if player ~= LocalPlayer and player.Character then
 				local highlight = player.Character:FindFirstChild("RedzoneESP")
 				local roleColor = getRoleColor(player)
-				
+
 				if not highlight then
 					highlight = Instance.new("Highlight")
 					highlight.Name = "RedzoneESP"
@@ -645,47 +707,6 @@ RunService.RenderStepped:Connect(function()
 					highlight.Parent = player.Character
 				end
 				highlight.FillColor = roleColor
-			end
-		end
-	end
-	
-	if autoShootEnabled and getRole(LocalPlayer) == "Sheriff" then
-		local myChar = LocalPlayer.Character
-		local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-		if myChar and myHum and myHum.Health > 0 then
-			for _, player in ipairs(Players:GetPlayers()) do
-				if player ~= LocalPlayer and player.Character and getRole(player) == "Murderer" then
-					local tChar = player.Character
-					local head = tChar:FindFirstChild("Head")
-					local hum = tChar:FindFirstChildOfClass("Humanoid")
-					
-					if head and hum and hum.Health > 0 then
-						local params = RaycastParams.new()
-						params.FilterType = Enum.RaycastFilterType.Exclude
-						params.FilterDescendantsInstances = {myChar}
-						local origin = Camera.CFrame.Position
-						local result = Workspace:Raycast(origin, head.Position - origin, params)
-						
-						if result and result.Instance:IsDescendantOf(tChar) then
-							Camera.CFrame = CFrame.new(origin, head.Position)
-							
-							local gun = myChar:FindFirstChild("Gun") or myChar:FindFirstChild("Revolver")
-							if not gun and myChar:FindFirstChild("HumanoidRootPart") then
-								local bp = LocalPlayer:FindFirstChild("Backpack")
-								local g = bp and (bp:FindFirstChild("Gun") or bp:FindFirstChild("Revolver"))
-								if g then
-									myHum:EquipTool(g)
-								end
-							end
-							
-							if gun and tick() - lastShot >= SHOOT_COOLDOWN then
-								lastShot = tick()
-								gun:Activate()
-							end
-							break
-						end
-					end
-				end
 			end
 		end
 	end
