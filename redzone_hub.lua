@@ -156,8 +156,7 @@ local autoShootEnabled = false
 local autoKillEnabled = false
 local autoFarmEnabled = false
 local noclipEnabled = false
-local farmSpeed = 25
-local MIN_SPEED, MAX_SPEED, SPEED_STEP = 5, 50, 5
+local farmSpeed = 22
 
 local function getRole(player)
 	local backpack = player:FindFirstChild("Backpack")
@@ -181,7 +180,9 @@ local function getRoleColor(player)
 	else
 		return Color3.fromRGB(0, 255, 0)
 	end
-end-- Innocent: Güvenli Yer
+end
+
+-- Innocent: Güvenli Yer
 local safeEnabled = false
 local SAFE_POS = Vector3.new(0, 500, 0)
 local DANGER_DIST = 35
@@ -379,9 +380,9 @@ task.spawn(function()
 end)
 
 -- Şerif: Katilə yapış + proqnozlu atəş
-local SHOOT_COOLDOWN = 0.45   -- atəşlər arası fasilə
-local AIM_LEAD = 0.13         -- sürət proqnozu (saniyə). Hələ qaçırırsa 0.18 yaz
-local BEHIND = 6              -- katilin neçə stud arxasında dayansın
+local SHOOT_COOLDOWN = 0.45
+local AIM_LEAD = 0.13
+local BEHIND = 6
 local lastShot = 0
 
 local function aimPoint(tRoot)
@@ -422,7 +423,6 @@ local shootConn = RunService.Heartbeat:Connect(function()
 			local hum = tChar and tChar:FindFirstChildOfClass("Humanoid")
 
 			if tRoot and hum and hum.Health > 0 then
-				-- Silahı götür
 				local gun = myChar:FindFirstChild("Gun") or myChar:FindFirstChild("Revolver")
 				if not gun then
 					local bp = LocalPlayer:FindFirstChild("Backpack")
@@ -431,14 +431,12 @@ local shootConn = RunService.Heartbeat:Connect(function()
 					return
 				end
 
-				-- Katilin proqnozlaşdırılmış mövqeyinin arxasına yapış
 				local predicted = tRoot.Position + tRoot.AssemblyLinearVelocity * 0.05
 				local behind = predicted - tRoot.CFrame.LookVector * BEHIND
 				myRoot.CFrame = CFrame.lookAt(behind, predicted)
 				myRoot.AssemblyLinearVelocity = Vector3.zero
 				Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint(tRoot))
 
-				-- Atəş (ayrı thread, döngünü dondurmur)
 				if tick() - lastShot >= SHOOT_COOLDOWN then
 					lastShot = tick()
 					task.spawn(fireGun, gun, tRoot)
@@ -447,7 +445,9 @@ local shootConn = RunService.Heartbeat:Connect(function()
 			end
 		end
 	end
-end)-- UI köməkçiləri
+end)
+
+-- UI köməkçiləri
 local function addButtonStroke(btn)
 	local s = Instance.new("UIStroke")
 	s.Color = Color3.fromRGB(140, 70, 200)
@@ -558,54 +558,6 @@ local function createButton(parent, name, yPos, color, callback)
 	return btn
 end
 
-local function createSpeedControl(parent, yPos)
-	local row = Instance.new("Frame")
-	row.Size = UDim2.new(0.88, 0, 0, 42)
-	row.Position = UDim2.new(0.06, 0, 0, yPos)
-	row.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
-	row.BorderSizePixel = 0
-	row.Parent = parent
-
-	local rowCorner = Instance.new("UICorner")
-	rowCorner.CornerRadius = UDim.new(0, 8)
-	rowCorner.Parent = row
-	addButtonStroke(row)
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0.5, 0, 1, 0)
-	label.Position = UDim2.new(0.25, 0, 0, 0)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextSize = 13
-	label.Font = Enum.Font.GothamSemibold
-	label.Text = "Hız: " .. farmSpeed
-	label.Parent = row
-
-	local function makeBtn(text, xPos, delta)
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(0.22, 0, 0.8, 0)
-		b.Position = UDim2.new(xPos, 0, 0.1, 0)
-		b.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-		b.TextColor3 = Color3.fromRGB(255, 255, 255)
-		b.TextSize = 18
-		b.Font = Enum.Font.GothamBold
-		b.Text = text
-		b.Parent = row
-
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0, 6)
-		c.Parent = b
-
-		b.MouseButton1Click:Connect(function()
-			farmSpeed = math.clamp(farmSpeed + delta, MIN_SPEED, MAX_SPEED)
-			label.Text = "Hız: " .. farmSpeed
-		end)
-	end
-
-	makeBtn("-", 0.02, -SPEED_STEP)
-	makeBtn("+", 0.76, SPEED_STEP)
-end
-
 -- Qruplar
 local farmPage = createTab("farm", "🍬 Farm", 0.04)
 local sheriffPage = createTab("sheriff", "🔫 Şerif", 0.355)
@@ -623,9 +575,7 @@ createToggle(farmPage, "Noclip", 48, function(state)
 	end
 end)
 
-createSpeedControl(farmPage, 96)
-
-createToggle(farmPage, "Innocent: Güvenli Yer", 144, function(state)
+createToggle(farmPage, "Innocent: Güvenli Yer", 96, function(state)
 	safeEnabled = state
 	if not state then
 		hiding = false
