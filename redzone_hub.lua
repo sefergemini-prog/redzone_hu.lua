@@ -1,4 +1,5 @@
--- Redzone Hub - MM2 Halloween Edition (Farm / Şerif / Katil)
+-- Redzone Hub - MM2 Halloween Edition (Farm / Sheriff / Murderer / Innocent)
+-- PART 1/3
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +44,7 @@ toggleStroke.Thickness = 2
 toggleStroke.Parent = toggleBtn
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 380)
+mainFrame.Size = UDim2.new(0, 280, 0, 380)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -151,11 +152,14 @@ toggleBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
+-- State
 local espEnabled = false
 local autoShootEnabled = false
 local autoKillEnabled = false
 local autoFarmEnabled = false
 local noclipEnabled = false
+local grabGunEnabled = false
+local grabbing = false
 local farmSpeed = 22
 
 local function getRole(player)
@@ -180,9 +184,9 @@ local function getRoleColor(player)
 	else
 		return Color3.fromRGB(0, 255, 0)
 	end
-end
+end-- PART 2/3
 
--- Innocent: Güvenli Yer
+-- Innocent: Safe Spot
 local safeEnabled = false
 local SAFE_POS = Vector3.new(0, 500, 0)
 local DANGER_DIST = 35
@@ -223,6 +227,7 @@ local function murdererNear(root)
 end
 
 local function isSafeMode()
+	if grabbing then return false end
 	if not (safeEnabled and roundActive() and getRole(LocalPlayer) == "Innocent") then
 		return false
 	end
@@ -235,7 +240,7 @@ task.spawn(function()
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		local active = safeEnabled and roundActive() and getRole(LocalPlayer) == "Innocent"
 
-		if active and root then
+		if active and root and not grabbing then
 			if autoFarmEnabled and tick() >= hideUntil and not hiding and murdererNear(root) then
 				returnCFrame = root.CFrame
 				hideUntil = tick() + HIDE_TIME
@@ -253,9 +258,55 @@ task.spawn(function()
 				hiding = false
 				if returnCFrame then root.CFrame = returnCFrame end
 			end
-		else
+		elseif not active then
 			hiding = false
 		end
+		task.wait(0.3)
+	end
+end)
+
+-- Innocent: Grab Sheriff Gun (when the sheriff dies and drops the gun)
+local function findGunDrop()
+	local drop = Workspace:FindFirstChild("GunDrop", true)
+	if drop then
+		if drop:IsA("BasePart") then return drop end
+		return drop:FindFirstChildWhichIsA("BasePart", true)
+	end
+	return nil
+end
+
+task.spawn(function()
+	while screenGui.Parent do
+		if grabGunEnabled and getRole(LocalPlayer) == "Innocent" then
+			local char = LocalPlayer.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local drop = findGunDrop()
+
+			if root and hum and hum.Health > 0 and drop and drop.Parent then
+				grabbing = true
+				if currentTween then currentTween:Cancel() end
+				local oldCFrame = root.CFrame
+
+				root.CFrame = drop.CFrame
+				task.wait(0.15)
+				if firetouchinterest then
+					pcall(function()
+						firetouchinterest(root, drop, 0)
+						task.wait()
+						firetouchinterest(root, drop, 1)
+					end)
+				end
+				task.wait(0.25)
+
+				if root.Parent then
+					root.CFrame = oldCFrame
+				end
+				grabbing = false
+				task.wait(1)
+			end
+		end
+		grabbing = false
 		task.wait(0.3)
 	end
 end)
@@ -318,7 +369,7 @@ task.spawn(function()
 	while screenGui.Parent do
 		local didMove = false
 		local killBusy = autoKillEnabled and getRole(LocalPlayer) == "Murderer"
-		if autoFarmEnabled and not killBusy and not isSafeMode() then
+		if autoFarmEnabled and not killBusy and not grabbing and not isSafeMode() then
 			local char = LocalPlayer.Character
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 			if root then
@@ -345,7 +396,7 @@ task.spawn(function()
 	end
 end)
 
--- Katil: Oto Öldür
+-- Murderer: Auto Kill
 task.spawn(function()
 	while screenGui.Parent do
 		if autoKillEnabled and getRole(LocalPlayer) == "Murderer" then
@@ -379,7 +430,7 @@ task.spawn(function()
 	end
 end)
 
--- Şerif: Katilə yapış + proqnozlu atəş
+-- Sheriff: Stick to murderer + predictive shooting
 local SHOOT_COOLDOWN = 0.45
 local AIM_LEAD = 0.13
 local BEHIND = 6
@@ -395,7 +446,7 @@ local function fireGun(gun, tRoot)
 		local kl = gun:FindFirstChild("KnifeLocal")
 		local cb = kl and kl:FindFirstChild("CreateBeam")
 		local rf = cb and cb:FindFirstChild("RemoteFunction")
-		if not rf then error("remote yoxdur") end
+		if not rf then error("remote not found") end
 		rf:InvokeServer(1, aim, "AH2")
 	end)
 	if ok then return end
@@ -445,9 +496,9 @@ local shootConn = RunService.Heartbeat:Connect(function()
 			end
 		end
 	end
-end)
+end)-- PART 3/3
 
--- UI köməkçiləri
+-- UI helpers
 local function addButtonStroke(btn)
 	local s = Instance.new("UIStroke")
 	s.Color = Color3.fromRGB(140, 70, 200)
@@ -484,11 +535,11 @@ local function createTab(name, label, xScale)
 	pages[name] = page
 
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.new(0.29, 0, 0, 34)
+	b.Size = UDim2.new(0.22, 0, 0, 34)
 	b.Position = UDim2.new(xScale, 0, 0, 52)
 	b.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
 	b.TextColor3 = Color3.fromRGB(200, 200, 200)
-	b.TextSize = 13
+	b.TextSize = 11
 	b.Font = Enum.Font.GothamBold
 	b.Text = label
 	b.Parent = mainFrame
@@ -513,7 +564,7 @@ local function createToggle(parent, name, yPos, callback)
 	btn.TextColor3 = Color3.fromRGB(200, 200, 200)
 	btn.TextSize = 13
 	btn.Font = Enum.Font.GothamSemibold
-	btn.Text = name .. " [ KAPALI ]"
+	btn.Text = name .. " [ OFF ]"
 	btn.Parent = parent
 
 	local corner = Instance.new("UICorner")
@@ -528,11 +579,11 @@ local function createToggle(parent, name, yPos, callback)
 		if state then
 			btn.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.Text = name .. " [ AÇIK ]"
+			btn.Text = name .. " [ ON ]"
 		else
 			btn.BackgroundColor3 = Color3.fromRGB(30, 20, 45)
 			btn.TextColor3 = Color3.fromRGB(200, 200, 200)
-			btn.Text = name .. " [ KAPALI ]"
+			btn.Text = name .. " [ OFF ]"
 		end
 	end)
 	return btn
@@ -558,10 +609,11 @@ local function createButton(parent, name, yPos, color, callback)
 	return btn
 end
 
--- Qruplar
-local farmPage = createTab("farm", "🍬 Farm", 0.04)
-local sheriffPage = createTab("sheriff", "🔫 Şerif", 0.355)
-local murdererPage = createTab("murderer", "🔪 Katil", 0.67)
+-- Tabs
+local farmPage = createTab("farm", "🍬 Farm", 0.024)
+local sheriffPage = createTab("sheriff", "🔫 Sheriff", 0.268)
+local murdererPage = createTab("murderer", "🔪 Murderer", 0.512)
+local innocentPage = createTab("innocent", "😇 Innocent", 0.756)
 
 -- FARM
 createToggle(farmPage, "Auto Farm Candy", 0, function(state)
@@ -575,7 +627,34 @@ createToggle(farmPage, "Noclip", 48, function(state)
 	end
 end)
 
-createToggle(farmPage, "Innocent: Güvenli Yer", 96, function(state)
+-- SHERIFF
+createToggle(sheriffPage, "Sheriff: TP to Murderer + Shoot", 0, function(state)
+	autoShootEnabled = state
+end)
+
+createToggle(sheriffPage, "Role ESP", 48, function(state)
+	espEnabled = state
+	if not espEnabled then
+		for _, p in ipairs(Players:GetPlayers()) do
+			local c = p.Character
+			if c then
+				local h = c:FindFirstChild("RedzoneESP")
+				if h then h:Destroy() end
+				local head = c:FindFirstChild("Head")
+				local t = head and head:FindFirstChild("RedzoneTag")
+				if t then t:Destroy() end
+			end
+		end
+	end
+end)
+
+-- MURDERER
+createToggle(murdererPage, "Murderer: Auto Kill", 0, function(state)
+	autoKillEnabled = state
+end)
+
+-- INNOCENT
+createToggle(innocentPage, "Innocent: Safe Spot", 0, function(state)
 	safeEnabled = state
 	if not state then
 		hiding = false
@@ -586,37 +665,36 @@ createToggle(farmPage, "Innocent: Güvenli Yer", 96, function(state)
 	end
 end)
 
--- ŞERİF
-createToggle(sheriffPage, "Şerif: Katile TP + Vur", 0, function(state)
-	autoShootEnabled = state
-end)
-
-createToggle(sheriffPage, "Role ESP", 48, function(state)
-	espEnabled = state
-	if not espEnabled then
-		for _, p in ipairs(Players:GetPlayers()) do
-			if p.Character and p.Character:FindFirstChild("RedzoneESP") then
-				p.Character.RedzoneESP:Destroy()
-			end
-		end
+createToggle(innocentPage, "Grab Sheriff Gun", 48, function(state)
+	grabGunEnabled = state
+	if not state then
+		grabbing = false
 	end
 end)
 
--- KATİL
-createToggle(murdererPage, "Katil: Oto Öldür", 0, function(state)
-	autoKillEnabled = state
-end)
-
--- Kapat
-createButton(mainFrame, "Scripti Kapat", 292, Color3.fromRGB(70, 35, 90), function()
+-- Close
+createButton(mainFrame, "Close Script", 292, Color3.fromRGB(70, 35, 90), function()
 	autoFarmEnabled = false
 	autoKillEnabled = false
 	autoShootEnabled = false
 	noclipEnabled = false
 	safeEnabled = false
+	grabGunEnabled = false
+	grabbing = false
+	espEnabled = false
 	hiding = false
 	if currentTween then currentTween:Cancel() end
 	if safePlatform then safePlatform:Destroy() end
+	for _, p in ipairs(Players:GetPlayers()) do
+		local c = p.Character
+		if c then
+			local h = c:FindFirstChild("RedzoneESP")
+			if h then h:Destroy() end
+			local head = c:FindFirstChild("Head")
+			local t = head and head:FindFirstChild("RedzoneTag")
+			if t then t:Destroy() end
+		end
+	end
 	restoreCollision()
 	noclipConn:Disconnect()
 	shootConn:Disconnect()
@@ -625,7 +703,7 @@ end)
 
 selectTab("farm")
 
--- Animasiya + ESP
+-- Animation + ESP
 RunService.RenderStepped:Connect(function()
 	local now = tick()
 	local t = now % 5 / 5
@@ -643,20 +721,53 @@ RunService.RenderStepped:Connect(function()
 
 	if espEnabled then
 		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character then
-				local highlight = player.Character:FindFirstChild("RedzoneESP")
+			local char = player.Character
+			if player ~= LocalPlayer and char then
+				local role = getRole(player)
 				local roleColor = getRoleColor(player)
 
+				-- Very soft highlight
+				local highlight = char:FindFirstChild("RedzoneESP")
 				if not highlight then
 					highlight = Instance.new("Highlight")
 					highlight.Name = "RedzoneESP"
-					highlight.Adornee = player.Character
-					highlight.FillTransparency = 0.5
-					highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+					highlight.Adornee = char
+					highlight.FillTransparency = 0.95
+					highlight.OutlineTransparency = 0.6
 					highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-					highlight.Parent = player.Character
+					highlight.Parent = char
 				end
 				highlight.FillColor = roleColor
+				highlight.OutlineColor = roleColor
+
+				-- Role name above the head
+				local head = char:FindFirstChild("Head")
+				if head then
+					local tag = head:FindFirstChild("RedzoneTag")
+					if not tag then
+						tag = Instance.new("BillboardGui")
+						tag.Name = "RedzoneTag"
+						tag.Adornee = head
+						tag.Size = UDim2.new(0, 100, 0, 22)
+						tag.StudsOffset = Vector3.new(0, 2.5, 0)
+						tag.AlwaysOnTop = true
+						tag.Parent = head
+
+						local lbl = Instance.new("TextLabel")
+						lbl.Name = "Label"
+						lbl.Size = UDim2.new(1, 0, 1, 0)
+						lbl.BackgroundTransparency = 1
+						lbl.Font = Enum.Font.GothamBold
+						lbl.TextSize = 14
+						lbl.TextStrokeTransparency = 0.3
+						lbl.Parent = tag
+					end
+					local lbl = tag:FindFirstChild("Label")
+					if lbl then
+						lbl.Text = role
+						lbl.TextColor3 = roleColor
+					end
+				end
 			end
 		end
 	end
