@@ -1,4 +1,4 @@
--- Redzone Hub - MM2 Halloween Edition (Farm / Sheriff / Murderer / Innocent)
+-- Redzone Hub - MM2 Halloween Edition
 -- PART 1/3
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -265,7 +265,7 @@ task.spawn(function()
 	end
 end)
 
--- Innocent: Grab Sheriff Gun (when the sheriff dies and drops the gun)
+-- Innocent: Grab Sheriff Gun
 local function findGunDrop()
 	local drop = Workspace:FindFirstChild("GunDrop", true)
 	if drop then
@@ -335,7 +335,7 @@ local noclipConn = RunService.Stepped:Connect(function()
 			end
 		end
 	end
-end)
+end)-- PART 3/3
 
 -- Auto Farm Candy
 local visited = setmetatable({}, {__mode = "k"})
@@ -430,14 +430,15 @@ task.spawn(function()
 	end
 end)
 
--- Sheriff: Stick to murderer + predictive shooting
-local SHOOT_COOLDOWN = 0.45
-local AIM_LEAD = 0.13
-local BEHIND = 6
+-- Sheriff: keep distance + accurate shooting
+local SHOOT_COOLDOWN = 0.5
+local AIM_LEAD = 0.04
+local BEHIND = 16
 local lastShot = 0
 
 local function aimPoint(tRoot)
-	return tRoot.Position + tRoot.AssemblyLinearVelocity * AIM_LEAD
+	local torso = tRoot.Parent and (tRoot.Parent:FindFirstChild("UpperTorso") or tRoot)
+	return torso.Position + tRoot.AssemblyLinearVelocity * AIM_LEAD
 end
 
 local function fireGun(gun, tRoot)
@@ -483,20 +484,22 @@ local shootConn = RunService.Heartbeat:Connect(function()
 				end
 
 				local predicted = tRoot.Position + tRoot.AssemblyLinearVelocity * 0.05
-				local behind = predicted - tRoot.CFrame.LookVector * BEHIND
-				myRoot.CFrame = CFrame.lookAt(behind, predicted)
+				local side = tRoot.CFrame.RightVector * 10
+				local spot = predicted - tRoot.CFrame.LookVector * BEHIND + side
+				myRoot.CFrame = CFrame.lookAt(spot, predicted)
 				myRoot.AssemblyLinearVelocity = Vector3.zero
 				Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint(tRoot))
 
 				if tick() - lastShot >= SHOOT_COOLDOWN then
 					lastShot = tick()
+					Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint(tRoot))
 					task.spawn(fireGun, gun, tRoot)
 				end
 				break
 			end
 		end
 	end
-end)-- PART 3/3
+end)
 
 -- UI helpers
 local function addButtonStroke(btn)
@@ -628,23 +631,27 @@ createToggle(farmPage, "Noclip", 48, function(state)
 end)
 
 -- SHERIFF
-createToggle(sheriffPage, "Sheriff: TP to Murderer + Shoot", 0, function(state)
+createToggle(sheriffPage, "Sheriff: Shoot Murderer", 0, function(state)
 	autoShootEnabled = state
 end)
+
+local function clearESP()
+	for _, p in ipairs(Players:GetPlayers()) do
+		local c = p.Character
+		if c then
+			local h = c:FindFirstChild("RedzoneESP")
+			if h then h:Destroy() end
+			local head = c:FindFirstChild("Head")
+			local t = head and head:FindFirstChild("RedzoneTag")
+			if t then t:Destroy() end
+		end
+	end
+end
 
 createToggle(sheriffPage, "Role ESP", 48, function(state)
 	espEnabled = state
 	if not espEnabled then
-		for _, p in ipairs(Players:GetPlayers()) do
-			local c = p.Character
-			if c then
-				local h = c:FindFirstChild("RedzoneESP")
-				if h then h:Destroy() end
-				local head = c:FindFirstChild("Head")
-				local t = head and head:FindFirstChild("RedzoneTag")
-				if t then t:Destroy() end
-			end
-		end
+		clearESP()
 	end
 end)
 
@@ -685,16 +692,7 @@ createButton(mainFrame, "Close Script", 292, Color3.fromRGB(70, 35, 90), functio
 	hiding = false
 	if currentTween then currentTween:Cancel() end
 	if safePlatform then safePlatform:Destroy() end
-	for _, p in ipairs(Players:GetPlayers()) do
-		local c = p.Character
-		if c then
-			local h = c:FindFirstChild("RedzoneESP")
-			if h then h:Destroy() end
-			local head = c:FindFirstChild("Head")
-			local t = head and head:FindFirstChild("RedzoneTag")
-			if t then t:Destroy() end
-		end
-	end
+	clearESP()
 	restoreCollision()
 	noclipConn:Disconnect()
 	shootConn:Disconnect()
@@ -726,7 +724,6 @@ RunService.RenderStepped:Connect(function()
 				local role = getRole(player)
 				local roleColor = getRoleColor(player)
 
-				-- Very soft highlight
 				local highlight = char:FindFirstChild("RedzoneESP")
 				if not highlight then
 					highlight = Instance.new("Highlight")
@@ -740,7 +737,6 @@ RunService.RenderStepped:Connect(function()
 				highlight.FillColor = roleColor
 				highlight.OutlineColor = roleColor
 
-				-- Role name above the head
 				local head = char:FindFirstChild("Head")
 				if head then
 					local tag = head:FindFirstChild("RedzoneTag")
