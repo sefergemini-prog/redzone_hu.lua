@@ -461,7 +461,7 @@ end)
 -- Sheriff: keep distance + accurate shooting
 local SHOOT_COOLDOWN = 0.5
 local AIM_LEAD = 0.04
-local BEHIND = 28
+local BEHIND = 16
 local lastShot = 0
 
 local Stats = game:GetService("Stats")
