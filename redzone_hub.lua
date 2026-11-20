@@ -1,11 +1,12 @@
--- Redzone Hub - MM2 Halloween Edition
--- PART 1/3
+-- Redzone Hub - MM2 Edition
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local VIM = game:GetService("VirtualInputManager")
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
@@ -25,15 +26,43 @@ screenGui.Name = "RedzoneHubGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = parentContainer
 
+-- Toggle düyməsindəki şəkil: öz Roblox asset ID-ni bura yaz
+local TOGGLE_IMAGE = "rbxassetid://71729583064993"
+
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Size = UDim2.new(0, 200, 0, 52)
 toggleBtn.Position = UDim2.new(0.02, 0, 0.1, 0)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(35, 20, 50)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 140, 0)
 toggleBtn.TextSize = 13
 toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.Text = "🎃 Redzone Hub 👻"
+toggleBtn.Text = ""
 toggleBtn.Parent = screenGui
+
+local toggleIcon = Instance.new("ImageLabel")
+toggleIcon.Name = "ToggleIcon"
+toggleIcon.Size = UDim2.new(0, 44, 0, 44)
+toggleIcon.Position = UDim2.new(0, 4, 0.5, -22)
+toggleIcon.BackgroundTransparency = 1
+toggleIcon.Image = TOGGLE_IMAGE
+toggleIcon.ScaleType = Enum.ScaleType.Crop
+toggleIcon.Parent = toggleBtn
+
+local toggleIconCorner = Instance.new("UICorner")
+toggleIconCorner.CornerRadius = UDim.new(0, 8)
+toggleIconCorner.Parent = toggleIcon
+
+local toggleLabel = Instance.new("TextLabel")
+toggleLabel.Name = "ToggleLabel"
+toggleLabel.Size = UDim2.new(1, -58, 1, 0)
+toggleLabel.Position = UDim2.new(0, 54, 0, 0)
+toggleLabel.BackgroundTransparency = 1
+toggleLabel.TextColor3 = Color3.fromRGB(255, 140, 0)
+toggleLabel.TextSize = 16
+toggleLabel.Font = Enum.Font.GothamBold
+toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+toggleLabel.Text = "Redzone Hub"
+toggleLabel.Parent = toggleBtn
 
 local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(0, 8)
@@ -82,7 +111,7 @@ decorCorner.CornerRadius = UDim.new(0, 12)
 decorCorner.Parent = decor
 
 local floaters = {}
-local floaterIcons = {"🦇", "👻", "🎃", "🍬", "🦇", "👻", "🍬", "🎃"}
+local floaterIcons = {"🔪", "🔫", "💰", "💀", "🔪", "🔫", "💰", "💀"}
 for i, icon in ipairs(floaterIcons) do
 	local lbl = Instance.new("TextLabel")
 	lbl.Size = UDim2.new(0, 30, 0, 30)
@@ -106,7 +135,7 @@ title.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextSize = 16
 title.Font = Enum.Font.GothamBold
-title.Text = "🎃 REDZONE HUB 🎃"
+title.Text = "🔪 REDZONE HUB 🔫"
 title.Parent = mainFrame
 
 local titleCorner = Instance.new("UICorner")
@@ -121,20 +150,20 @@ titleGradient.Color = ColorSequence.new({
 })
 titleGradient.Parent = title
 
-local function makeWeb(posX, anchorX, flip)
+local function makeWeb(posX, anchorX, flip, icon)
 	local web = Instance.new("TextLabel")
 	web.Size = UDim2.new(0, 34, 0, 34)
 	web.AnchorPoint = Vector2.new(anchorX, 0)
 	web.Position = UDim2.new(posX, 0, 0, 2)
 	web.BackgroundTransparency = 1
-	web.Text = "🕸️"
+	web.Text = icon
 	web.TextSize = 26
 	web.ZIndex = 5
 	web.Rotation = flip and 90 or 0
 	web.Parent = mainFrame
 end
-makeWeb(0, 0, false)
-makeWeb(1, 1, true)
+makeWeb(0, 0, false, "🔪")
+makeWeb(1, 1, true, "🔫")
 
 local footer = Instance.new("TextLabel")
 footer.Size = UDim2.new(1, 0, 0, 28)
@@ -144,7 +173,7 @@ footer.BackgroundTransparency = 1
 footer.TextColor3 = Color3.fromRGB(255, 140, 0)
 footer.Font = Enum.Font.GothamBold
 footer.TextSize = 18
-footer.Text = "🦇 👻 🎃 👻 🦇"
+footer.Text = "🔪 🔫 💰 🔫 🔪"
 footer.ZIndex = 5
 footer.Parent = mainFrame
 
@@ -165,7 +194,6 @@ local farmSpeed = 22
 local function getRole(player)
 	local backpack = player:FindFirstChild("Backpack")
 	local character = player.Character
-
 	if (character and character:FindFirstChild("Knife")) or (backpack and backpack:FindFirstChild("Knife")) then
 		return "Murderer"
 	elseif (character and (character:FindFirstChild("Gun") or character:FindFirstChild("Revolver"))) or (backpack and (backpack:FindFirstChild("Gun") or backpack:FindFirstChild("Revolver"))) then
@@ -184,7 +212,7 @@ local function getRoleColor(player)
 	else
 		return Color3.fromRGB(0, 255, 0)
 	end
-end-- PART 2/3
+end
 
 -- Innocent: Safe Spot
 local safeEnabled = false
@@ -335,9 +363,9 @@ local noclipConn = RunService.Stepped:Connect(function()
 			end
 		end
 	end
-end)-- PART 3/3
+end)
 
--- Auto Farm Candy
+-- Auto Farm Coin
 local visited = setmetatable({}, {__mode = "k"})
 local VISIT_COOLDOWN = 15
 
@@ -433,12 +461,29 @@ end)
 -- Sheriff: keep distance + accurate shooting
 local SHOOT_COOLDOWN = 0.5
 local AIM_LEAD = 0.04
-local BEHIND = 16
+local BEHIND = 28
 local lastShot = 0
 
+local Stats = game:GetService("Stats")
+
+local function getLead()
+	local ping = 0
+	pcall(function()
+		ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+	end)
+	return math.clamp(ping * 0.5 + AIM_LEAD, 0.05, 0.3)
+end
+
 local function aimPoint(tRoot)
-	local torso = tRoot.Parent and (tRoot.Parent:FindFirstChild("UpperTorso") or tRoot)
-	return torso.Position + tRoot.AssemblyLinearVelocity * AIM_LEAD
+	local vel = tRoot.AssemblyLinearVelocity
+	local hum = tRoot.Parent and tRoot.Parent:FindFirstChildOfClass("Humanoid")
+	local t = getLead()
+	local yOffset = vel.Y * t
+	-- Hoppanırsa (havadadırsa) qravitasiyanı da nəzərə al
+	if hum and hum.FloorMaterial == Enum.Material.Air then
+		yOffset = vel.Y * t - 0.5 * Workspace.Gravity * t * t
+	end
+	return tRoot.Position + Vector3.new(vel.X * t, yOffset, vel.Z * t)
 end
 
 local function fireGun(gun, tRoot)
@@ -531,8 +576,7 @@ end
 local function createTab(name, label, xScale)
 	local page = Instance.new("Frame")
 	page.Size = UDim2.new(1, 0, 0, 200)
-	page.Position = UDim2.new(0, 0, 0, 94)
-	page.BackgroundTransparency = 1
+	page.Position = UDim2.new(0, 0, 0, 94)page.BackgroundTransparency = 1
 	page.Visible = false
 	page.Parent = mainFrame
 	pages[name] = page
@@ -613,13 +657,13 @@ local function createButton(parent, name, yPos, color, callback)
 end
 
 -- Tabs
-local farmPage = createTab("farm", "🍬 Farm", 0.024)
+local farmPage = createTab("farm", "💰 Farm", 0.024)
 local sheriffPage = createTab("sheriff", "🔫 Sheriff", 0.268)
 local murdererPage = createTab("murderer", "🔪 Murderer", 0.512)
 local innocentPage = createTab("innocent", "😇 Innocent", 0.756)
 
 -- FARM
-createToggle(farmPage, "Auto Farm Candy", 0, function(state)
+createToggle(farmPage, "Autofarm Coin", 0, function(state)
 	autoFarmEnabled = state
 end)
 
